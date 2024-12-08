@@ -1,0 +1,5 @@
+Linux out-of-kernel driver for nCipher nShield Solo and Solo XC PCIe HSMs
+=========================================================================
+
+This driver was submitted to the linux-kernel mailing list, but ultimately
+was not accepted for inclusion: https://lkml.org/lkml/2019/12/20/643
