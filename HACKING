@@ -11,8 +11,18 @@ $ nix-shell '<nixpkgs>' -A linux_5_4.dev
 
 $ sudo insmod ./nshield_solo.ko
 
-$ dmesg | grep hello
-[   82.027229] hello world!
+$ ls -al /dev/nshield_solo0 
+crw------- 1 root root 176, 0 Dec  8 12:29 /dev/nshield_solo0
+
+[17485.297552] nfp_module_init: inserting nshield_solo module
+[17485.297554] nfp_init: entered
+[17485.297587] nshield_solo 0000:03:00.0: nfp_pci_probe: probing PCI device 0000:03:00.0
+[17485.297732] nshield_solo 0000:03:00.0: nfp_pci_probe: devname , slotname 0000:03:00.0, busname PCI Bus 0000:03
+[17485.297733] nshield_solo 0000:03:00.0: nfp_setup: Found 'nCipher nShield Solo' at bus 3, slot 0, irq 17.
+[17485.297734] nshield_solo 0000:03:00.0: nfp_setup: allocated device structure.
+[17485.297750] nshield_solo 0000:03:00.0: i21555_create: entered
+[17485.297751] nshield_solo 0000:03:00.0: i21555_create: enable doorbell
+[17485.297824] nshield_solo 0000:03:00.0: nfp_setup: nfp_num_devices= 0, ndev = 0000000058d0d525.
 
 References:
  * https://phip1611.de/blog/building-an-out-of-tree-linux-kernel-module-in-nix/
