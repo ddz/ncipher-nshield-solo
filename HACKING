@@ -1,0 +1,19 @@
+$ nix-shell '<nixpkgs>' -A linux.dev
+
+test versions:
+kernelPackages_5_4
+kernelPackages_5_10
+kernelPackages_5_15
+
+$ make -C $(nix-build -E '(import <nixpkgs> {}).linuxPackages_5_15.kernel.dev' --no-out-link)/lib/modules/*/build M=$(pwd) modules
+
+$ nix-shell '<nixpkgs>' -A linux_5_4.dev
+
+$ sudo insmod ./nshield_solo.ko
+
+$ dmesg | grep hello
+[   82.027229] hello world!
+
+References:
+ * https://phip1611.de/blog/building-an-out-of-tree-linux-kernel-module-in-nix/
+ * https://github.com/phip1611/qemu-debugcon-linux-driver
