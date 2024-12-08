@@ -12,6 +12,7 @@
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/bitops.h>
+#include <linux/version.h>
 
 #include "solo.h"
 #include "i21555.h"
@@ -1028,6 +1029,15 @@ static int nfp_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static inline void nfp_set_task_state(struct task_struct *task, long state)
+{
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0)
+	task->state = state;
+#else
+	task->__state = state;
+#endif
+}
+
 /**
  * nfp_release - Releases an NSHIELD SOLO device.
  * @node:	device inode pointer
@@ -1067,7 +1077,7 @@ static int nfp_release(struct inode *node, struct file *file)
 
 		timeout = 1;
 		init_waitqueue_entry(&wait, current);
-		current->state = TASK_UNINTERRUPTIBLE;
+		nfp_set_task_state(current, TASK_UNINTERRUPTIBLE);
 		add_wait_queue(&ndev->rd_queue, &wait);
 		if (test_bit(WAIT_BIT, &ndev->rd_outstanding)) {
 			dev_dbg(&ndev->pcidev->dev,
@@ -1076,7 +1086,7 @@ static int nfp_release(struct inode *node, struct file *file)
 			dev_dbg(&ndev->pcidev->dev,
 				"%s: finished waiting", __func__);
 		}
-		current->state = TASK_RUNNING;
+		nfp_set_task_state(current, TASK_RUNNING);
 		remove_wait_queue(&ndev->rd_queue, &wait);
 		if (!timeout) {
 			dev_err(&ndev->pcidev->dev,
@@ -1161,6 +1171,20 @@ static void nfp_dev_destroy(struct nfp_dev *ndev, struct pci_dev *pci_dev)
 	}
 }
 
+static inline void __iomem *nfp_ioremap(int flags, phys_addr_t paddr,
+					unsigned long size)
+{
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 0)
+	if (flags & PCI_BASE_ADDRESS_SPACE_PREFETCHABLE) {
+		return ioremap(paddr, size);
+	} else {
+		return ioremap_nocache(paddr, size);
+	}
+#else
+	return ioremap(paddr, size);
+#endif
+}
+
 static int nfp_setup(const struct nfpcmd_dev *cmddev, u8 bus, u8 slot,
 		     u32 bar[6], u32 irq_line, struct pci_dev *pcidev)
 {
@@ -1208,13 +1232,7 @@ static int nfp_setup(const struct nfpcmd_dev *cmddev, u8 bus, u8 slot,
 				goto fail_continue;
 			}
 
-			if (bar_flags & PCI_BASE_ADDRESS_SPACE_PREFETCHABLE) {
-				ndev->bar[i] =
-					ioremap(bar[i], map_bar_size);
-			} else {
-				ndev->bar[i] =
-					ioremap_nocache(bar[i], map_bar_size);
-			}
+			ndev->bar[i] = nfp_ioremap(bar_flags, bar[i], map_bar_size);
 
 			if (!ndev->bar[i]) {
 				dev_err(&ndev->pcidev->dev,
@@ -1459,6 +1477,16 @@ static struct pci_driver nfp_pci_driver = { .name = "nshield_solo",
  * initialisation
  */
 
+static inline struct class *nfp_class_create(struct module *owner,
+					     const char *name)
+{
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 4, 0)
+	return class_create(owner, name);
+#else
+	return class_create(name);
+#endif
+}
+
 static int nfp_init(void)
 {
 	int index;
@@ -1473,7 +1501,7 @@ static int nfp_init(void)
 	for (index = 0; index < NFP_MAXDEV; index++)
 		nfp_dev_list[index] = NULL;
 
-	nfp_class = class_create(THIS_MODULE, "nshield_solo");
+	nfp_class = nfp_class_create(THIS_MODULE, "nshield_solo");
 	if (IS_ERR(nfp_class)) {
 		pr_err("%s: failed to create a class for this device, err = %ld",
 		       __func__, PTR_ERR(nfp_class));
